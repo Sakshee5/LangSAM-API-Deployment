@@ -138,16 +138,15 @@ Now, extract the core product name from the following:
 
 {product_name}"""
 
-@app.post("/openai/chat")
-async def chat(product_name: str = Form(...)):
+def chat(product_name: str = Form(...)):
     try:
         logger.info(f"Processing product name: {product_name}")
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt.format(product_name=product_name)}],
         )
-        result = completion.choices[0].message
-        logger.info(f"OpenAI response: {result.content}")
+        result = completion.choices[0].message.content
+        logger.info(f"OpenAI response: {result}")
         return result
     except Exception as e:
         logger.error(f"Error in OpenAI chat: {str(e)}")
@@ -206,6 +205,8 @@ async def segment_image(
 
 @app.post("/segment/langsam")
 async def segment_image(image_url: str = Form(...), text_prompt: str = Form(...)):
+    # process text prompt using openai chat
+    text_prompt = chat(text_prompt)
     try:
         logger.info(f"Starting LangSAM segmentation for image URL: {image_url} with prompt: {text_prompt}")
         image_pil = load_image_from_url(image_url)
@@ -234,7 +235,8 @@ async def segment_image(image_url: str = Form(...), text_prompt: str = Form(...)
             "mask_only": mask_only_b64,
             "boxes": results[0]["boxes"].tolist(),
             "scores": results[0]["scores"].tolist(),
-            "labels": results[0]["labels"]
+            "labels": results[0]["labels"],
+            "product_tag": text_prompt
         }
         
         logger.info("LangSAM segmentation completed successfully")
